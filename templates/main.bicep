@@ -87,39 +87,27 @@ var environmentConfigurationMap = {
 var contributorRoleDefinitionId = 'b24988ac-6180-42a0-ab88-20f7382dd24c' // This is the built-in Azure 'Contributor' role.
 var storageAccountConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${listKeys(storageAccount.id, storageAccount.apiVersion).keys[0].value}'
 
-resource sqlServer 'Microsoft.Sql/servers@2019-06-01-preview' = {
-  name: sqlServerName
-  location: location
-  tags: tags
-  properties: {
-    administratorLogin: sqlServerAdministratorLogin
-    administratorLoginPassword: sqlServerAdministratorLoginPassword
-    version: '12.0'
+module sqlModule 'modules/sql.bicep' = {
+  name: 'sqlModule'
+  params: {
+    location: location
+    sqlServerName: sqlServerName
+    sqlDatabaseName: sqlDatabaseName
+    sqlServerAdministratorLogin: sqlServerAdministratorLogin
+    sqlServerAdministratorLoginPassword: sqlServerAdministratorLoginPassword
+    sqlSku: environmentConfigurationMap[environmentName].sqlDatabase.sku
+    tags: tags
   }
 }
 
-resource sqlDatabase 'Microsoft.Sql/servers/databases@2020-08-01-preview' = {
-  parent: sqlServer
-  name: sqlDatabaseName
-  location: location
-  sku: environmentConfigurationMap[environmentName].sqlDatabase.sku
-  tags: tags
-}
-
-resource sqlFirewallRuleAllowAllAzureIPs 'Microsoft.Sql/servers/firewallRules@2014-04-01' = {
-  parent: sqlServer
-  name: 'AllowAllAzureIPs'
-  properties: {
-    endIpAddress: '0.0.0.0'
-    startIpAddress: '0.0.0.0'
+module appServicePlanModule 'modules/plan.bicep' = {
+  name: 'appServicePlanModule'
+  params: {
+    appServicePlanName: appServicePlanName
+    location: location
+    sku: environmentConfigurationMap[environmentName].appServicePlan.sku
+    tags: tags
   }
-}
-
-resource appServicePlan 'Microsoft.Web/serverfarms@2020-06-01' = {
-  name: appServicePlanName
-  location: location
-  sku: environmentConfigurationMap[environmentName].appServicePlan.sku
-  tags: tags
 }
 
 resource appServiceApp 'Microsoft.Web/sites@2020-06-01' = {
@@ -127,7 +115,7 @@ resource appServiceApp 'Microsoft.Web/sites@2020-06-01' = {
   location: location
   tags: tags
   properties: {
-    serverFarmId: appServicePlan.id
+    serverFarmId: appServicePlanModule.outputs.id // use output value
     siteConfig: {
       appSettings: [
         {
