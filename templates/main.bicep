@@ -145,15 +145,11 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2019-06-01' = {
   properties: {
     accessTier: 'Hot'
   }
-
-  resource blobServices 'blobServices' existing = {
-    name: 'default'
-
-    resource containers 'containers' = [for blobContainerName in blobContainerNames: {
-      name: blobContainerName
-    }]
-  }
 }
+// containers in the above storage account
+resource containers 'Microsoft.Storage/storageAccounts/blobServices/containers@2019-06-01' = [for blobContainerName in blobContainerNames: {
+  name: '${storageAccount.name}/default/${blobContainerName}'  
+}]
 
 // A user-assigned managed identity that is used by the App Service app to communicate with a storage account.
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2018-11-30' = {
